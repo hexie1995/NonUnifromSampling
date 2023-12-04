@@ -1,0 +1,35 @@
+Spectral clustering using Non-backtracking matrix of a graph.
+Author: Pan Zhang
+Email: pan@santafe.edu
+Companion paper: "Spectral redemption: clustering sparse networks" http://arxiv.org/abs/1306.5550
+
+"DEA" means Directed Edge Adjacency matrix, another name for the Non-backtracking matrix.
+We also have used other names for the matrix, like "DOG", which stands for
+"Directions Of Graph" and "cavity matrix". So don't be surprise if you see "DOG" or
+"cavity" in the code.
+
+
+Version 1.1
+Release time 06/28/2013
+
+Version 1.2
+Release time 09/22/2013
+1.) "mode" has a new defualt option 5, which uses B', the 2N*2N matrix instead of DEA matrix.
+2.) MATLAB version tolerence has been added to random number generator.
+3.) a bug in demo demo_eigenvalues_DEA.m has been fixed, that is: numvec -> opt.numvec.
+
+-----------------------------------------------------------------------------------------
+Function:
+Compute Non-backtracking matrix and do clustering by signs or k-means algorithm using 
+eigenvectors of Non-backtracking matrix of the given network.
+
+-----------------------------------------------------------------------------------------
+Installation:
+Set the folder containing deaspec.m and the folder "subroutines" into MATLAB path.
+
+-----------------------------------------------------------------------------------------
+Running examples:
+Try running demos in folder "demo"
+
+-----------------------------------------------------------------------------------------
+The last version of this program is at http://panzhang.net/dea/dea.tar.gz

@@ -1,4 +1,4 @@
-# NonUnifromSampling
+# Link Prediction Accuracy on Real-World Networks Under Non-Uniform Missing-Edge Patterns
 
 This is the Github accompanying the paper "Link Prediction Accuracy on Real-World Networks Under
 Non-Uniform Missing-Edge Patterns", submitted to PLOS One and available as Preprint on Arxiv at [preprint](https://arxiv.org/abs/2401.15140)

@@ -1,9 +1,11 @@
-addpath(genpath('/home/xhe/SPECTRAL_5_RUN/spectral_1/'));
+addpath(genpath('/home/xhe/after_samp_process/link_predictions/Spectral/m1/'));
 %path = 'C:\Users\hexie\OneDrive\Desktop\sampling\data\';
 %savepath = 'C:\Users\hexie\OneDrive\Desktop\sampling\AUC_results\';
 
-path = '/home/xhe/updated_edges_revised/';
-savepath = '/home/xhe/SPECTRAL_5_RUN/spectral_1/';
+path1 = '/home/xhe/updated_edges_revised/';
+path2 = '/home/xhe/sampled_edges_2024_old/';
+
+savepath = '/home/xhe/after_samp_process/link_predictions/Spectral/m1/';
 
 
 
@@ -21,7 +23,7 @@ for net  = 1:572
     for k = 1:length(sampling_methods)
        samp = sampling_methods{k}
        try
-           auc = spectral_for_sampling(path, netme, samp);
+           auc = spectral_for_sampling(path1, path2, netme, samp);
        catch
            auc = 0;
        end

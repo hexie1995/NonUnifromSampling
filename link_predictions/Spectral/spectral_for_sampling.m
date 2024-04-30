@@ -1,12 +1,12 @@
 
 
-function auc_score = spectral_for_sampling(path, net, samp)
+function auc_score = spectral_for_sampling(path1, path2, net, samp)
 
 
 epsilon = 1e-10;
 rng(net)
 
-addpath(genpath('/home/xhe/SPECTRAL_5_RUN/spectral_1/'));
+addpath(genpath('/home/xhe/after_samp_process/link_predictions/Spectral/m1/'));
 %path = 'C:\Users\hexie\OneDrive\Desktop\sampling\';
 
 name = sprintf('net%d_',net);
@@ -15,9 +15,10 @@ test_name = sprintf('edge_set_test.txt');
 train_name = sprintf('edge_set_train.txt');
 
 
-edges_orig = dlmread([path,name_str]);
+edges_orig = dlmread([path1,name_str]);
 edges_orig = edges_orig + 1;
-N_orig = length(unique(edges_orig));
+N_orig = max(edges_orig,[],"all")+1;
+
 Aorig = sparse(zeros(N_orig,N_orig));
 M_orig = size(edges_orig,1);
 for mm = 1:M_orig
@@ -36,11 +37,14 @@ end
 
 AUC=0;
 
+train_name = sprintf('1%s_t_train.npy', samp)
 
-str_EL_sampled = sprintf('%s%s',name, train_name);
-edges_train = dlmread([path,str_EL_sampled]);
+
+str_EL_sampled = sprintf('%s_%s',name, train_name);
+edges_train = dlmread([path2,str_EL_sampled]);
 edges_train = edges_train + 1;
-N_train = length(unique(edges_train))
+%N_train = length(unique(edges_train))
+N_train =  N_orig
 A_train = sparse(zeros(N_train,N_train));
 
 M_train = size(edges_train,1);
@@ -74,8 +78,6 @@ end
 if k_NBM == 0
     k_NBM = 1;
 end
-%label_inferred_aux = dlmread(sprintf('./label_S_NB/label_SNB_f_%d_n_%d_%d.txt',frac_id,nsim_id,matrix_id));
-%k_NBM = length(unique(label_inferred_aux));
 
 if(k_NBM>2)
     do_clustering=3; % if q>2, use k-means clustering
@@ -130,30 +132,23 @@ D = sum(D);
 [vtmp, ind]=sort(abs(D),'descend');
 D = D(ind);
 V = V(:,ind);
-% [V,D] = eigs(Ao,k_NBM,'lr'); eigval = diag(D);
+
 Ahat = V(:,1:k_NBM)*diag(D(1:k_NBM))*V(:,1:k_NBM).';
-%         Bphat = V(:,1:k_NBM)*diag(D(1:k_NBM))*V(:,1:k_NBM).';
+
 [nonedges_row,nonedges_col] = find((triu(Ao==0,1))==1);
 nonedges_length = length(nonedges_row);
 
-%         A_diff = Aorig - Ao;
-%         [t_edges_row,t_edges_col] = find(triu(A_diff,1)==1);
-%         [nt_edges_row,nt_edges_col] = find((triu(Aorig==0,1))==1);
 Nsamples = 10000;
 
-t_sam_str = sprintf('%s_2%s_t_train_10000.npy',name, samp);
-f_sam_str = sprintf('%s_2%s_f_train_10000.npy',name, samp);
-f_samples = dlmread([path, f_sam_str]);
-t_samples = dlmread([path, t_sam_str]);
-%f_samples = dlmread(sprintf('../../all_netws/edge_tf/edge_f_frac_%d_nsim_%d_%d.txt',frac_id,nsim_id,matrix_id));
-%t_samples = dlmread(sprintf('../../all_netws/edge_tf/edge_t_frac_%d_nsim_%d_%d.txt',frac_id,nsim_id,matrix_id));
+t_sam_str = sprintf('%s_1_t_test_10000.npy',name);
+f_sam_str = sprintf('%s_1_f_test_10000.npy',name);
+f_samples = dlmread([path2, f_sam_str]);
+t_samples = dlmread([path2, t_sam_str]);
 f_samples = f_samples + 1;
 t_samples = t_samples + 1;
 results = [];
 TP_aux = 0;
 for ll=1:Nsamples
-    %             edge_t_idx = randi(length(t_edges_row));
-    %             edge_f_idx = randi(length(nt_edges_row));
     edge_f = f_samples(ll,:);
     edge_t = t_samples(ll,:);
 
@@ -164,11 +159,6 @@ for ll=1:Nsamples
         number_checker = number_checker + 1;
     end
 
-    %A_aux_t = full(Ao);
-    %A_aux_t(edge_t(1,1),edge_t(1,2)) = 1;
-    %A_aux_t(edge_t(1,2),edge_t(1,1)) = 1;
-    %dQ_t = 1/norm(Ahat - A_aux_t,'fro') + rand(1)/(100000*N);
-
 
     acheck21 = Ahat(edge_f(1,1),edge_f(1,2));
     acheck22 = Ahat(edge_f(1,2),edge_f(1,1));
@@ -177,11 +167,6 @@ for ll=1:Nsamples
         number_checker = number_checker + 1;
     end
 
-    %A_aux_f = full(Ao);
-    %A_aux_f(edge_f(1,1),edge_f(1,2)) = 1;
-    %A_aux_f(edge_f(1,2),edge_f(1,1)) = 1;
-
-    %dQ_f = 1/norm(Ahat - A_aux_f,'fro') + rand(1)/(100000*N);
 
     if (acheck11 > acheck21) && (acheck12 > acheck22) && abs(acheck11 - acheck21)>epsilon
         TP_aux = TP_aux + 1;
@@ -197,20 +182,6 @@ for ll=1:Nsamples
         results = [results;edge_t edge_f acheck11 acheck21 0];
     end
 
-
-    %if dQ_t > dQ_f
-    %    TP_aux = TP_aux + 1;
-    %    results = [results;edge_t edge_f dQ_t dQ_f 1];
-    %elseif dQ_t == dQ_f
-    %    if randi(2)==1
-    %        TP_aux = TP_aux + 1;
-    %        results = [results;edge_t edge_f dQ_t dQ_f 1];
-    %    else
-    %        results = [results;edge_t edge_f dQ_t dQ_f 0];
-    %    end
-    %else
-    %    results = [results;edge_t edge_f dQ_t dQ_f 0];
-    %end
 end
 AUC= TP_aux/Nsamples;
 if net == 0

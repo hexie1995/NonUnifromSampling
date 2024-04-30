@@ -18,7 +18,6 @@ Once you install the python packages in the above Github in the same envrionment
 Then proceed to run the codes in the order of:
 1. Preprocess(which include the non-unifrom sampling part)
 2. Link Prediction
-3. Plotting
 
 You can check your python version with
 ```bash

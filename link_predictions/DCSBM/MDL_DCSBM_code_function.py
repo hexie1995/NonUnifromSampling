@@ -16,24 +16,20 @@ def h_Lt(x):
     return (1+x)*np.log(1+x)-x*np.log(x)
 
 
-def mdldcsbm_for_sampling(path, net, samp):
+def mdldcsbm_for_sampling(path, path1, net, samp):
 
 
     name = "net"+ str(net) +"_"
     test_name = "edge_set" +"_test"
     train_name = "edge_set" +"_train"
 
-    edges_orig = np.loadtxt(path + name +'.txt')
-    train_edge = np.loadtxt(path + name + train_name +'.txt')
-    num_nodes = int(np.max(train_edge)) + 2
+    edges_orig = np.loadtxt(path1 + name +'.txt').astype(int)
+    train_edge = np.loadtxt(path + name + '_1' + samp +"_"+ "t" + "_" + "train" + '.npy').astype(int)
+    num_nodes = int(np.max(edges_orig)) + 1
     
     method = "MDLDCSBM"
     tau = 0.01
     AUC = 0
-    
-    np.random.seed(42)
-    gt.seed_rng(42)
-
 
     results_foldername = 'ResultsDCSBM_ST/'
     if not os.path.isdir(results_foldername):
@@ -45,16 +41,12 @@ def mdldcsbm_for_sampling(path, net, samp):
         os.mkdir(label_foldername)    
 
 
+    edges = np.loadtxt(path + name + '_1' + samp +"_"+ "t" + "_" + "train" + '.npy').astype(int)
 
-    path_EL_sampled = path + name + train_name  +".txt"
-
-    edges = np.loadtxt(path_EL_sampled)
     num_edges_info = len(edges) + 1
     
     edges = np.array(np.matrix(edges))
     
-    fid = open(path_EL_sampled,'r')
-    lines = fid.readlines()
     
     row = np.array(edges)[:,0]
     col = np.array(edges)[:,1]
@@ -156,8 +148,8 @@ def mdldcsbm_for_sampling(path, net, samp):
 #    ne_orig = sparse.find(sparse.triu(A_orig_aux,1))
     Nsamples = 10000;
     
-    t_samples = np.loadtxt(path + name + "_2" + samp + "_" + "t" + "_" + "train" + "_10000" + ".npy").astype('int')
-    f_samples = np.loadtxt(path + name + "_2" + samp + "_" + "f" + "_" + "train" + "_10000" + ".npy").astype('int')
+    t_samples = np.loadtxt(path + name + "_1" + "_" + "t" + "_" + "test" + "_10000" + ".npy").astype('int')
+    f_samples = np.loadtxt(path + name + "_1" + "_" + "f" + "_" + "test" + "_10000" + ".npy").astype('int')
     
     results = []
     TP_aux = 0
@@ -256,7 +248,7 @@ def mdldcsbm_for_sampling(path, net, samp):
         deg_g_aux[edge_f[1]] += 1
         bins_deg_g_aux = np.unique(deg_g_aux)
         for bb in bins_deg_g_aux:
-            if pk_deg_g_aux[bb]!=0:
+            if bb in list(pk_deg_g_aux.keys()) and pk_deg_g_aux[bb]!=0:
                 L_mclxty_dc_aux -= num_nodes*pk_deg_g_aux[bb]*np.log(pk_deg_g_aux[bb])
         Q_f = S_ent_dc_aux+L_mclxty_dc_aux
         if Q_t < Q_f:

@@ -16,10 +16,10 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support
 
-#A_test: 20 %
-#A_val: 16 %
-#A_train: 64 %
-#A_hold = A_val+A_train: 80%
+# A_test: 20 %
+# A_val: 16 %
+# A_train: 64 %
+# A_hold = A_val+A_train: 80%
 
 def gen_tr_ho_networks(A_orig, alpha, alpha_):
 
@@ -521,6 +521,105 @@ def creat_full_set(df_t,df_f):
     return df_all
 
 
+# +
+def creat_numpy_files_para(dir_results, df_ho, df_tr, name, samp):
+    
+    """ 
+    This function reads dataframes created for positive and negative classes, join them with their associated label.
+
+    Input and Parameters:
+    -------
+    df_tr: datafram of features/ground truth for positive and negative class for model selection
+    df_ho: datafram of features/ground truth for positive and negative class for held out model performance
+
+    Returns:
+    -------
+    save numpy files of X_train_i and y_train_i for 5 folds, also X_Eseen/X_Eunseen, y_Eseen/y_Eunseen in dir_results
+
+    Example:
+    -------
+    creat_numpy_files(dir_results, df_ho, df_tr)
+    """
+    
+    feature_set = ['com_ne', 'ave_deg_net', 'var_deg_net', 'ave_clust_net',
+           'num_triangles_1', 'num_triangles_2', 'page_rank_pers_edges',
+           'pag_rank1', 'pag_rank2', 'clust_coeff1', 'clust_coeff2',
+           'ave_neigh_deg1', 'ave_neigh_deg2', 'eig_cent1', 'eig_cent2',
+           'deg_cent1', 'deg_cent2', 'clos_cent1', 'clos_cent2', 'betw_cent1',
+           'betw_cent2', 'load_cent1', 'load_cent2', 'ktz_cent1', 'ktz_cent2',
+           'pref_attach', 'LHN', 'svd_edges', 'svd_edges_dot', 'svd_edges_mean',
+           'svd_edges_approx', 'svd_edges_dot_approx', 'svd_edges_mean_approx',
+           'short_path', 'deg_assort', 'transit_net', 'diam_net',
+           'jacc_coeff', 'res_alloc_ind', 'adam_adar' , 'num_nodes','num_edges']  
+
+    X_test_heldout = df_ho
+    y_test_heldout = np.array(df_ho.TP)
+    
+    
+    X_train_orig = df_tr
+    y_train_orig = np.array(df_tr.TP)
+
+    skf = StratifiedKFold(n_splits=5,shuffle=True)
+    skf.get_n_splits(X_train_orig, y_train_orig)
+
+    if not os.path.isdir(dir_results+'/'):
+        os.mkdir(dir_results+'/')
+        
+    nFold = 1 
+    for train_index, test_index in skf.split(X_train_orig, y_train_orig):
+
+        cv_train = list(train_index)
+        cv_test = list(test_index)
+         
+         
+        train = X_train_orig.iloc[np.array(cv_train)]
+        test = X_train_orig.iloc[np.array(cv_test)]
+
+        y_train = train.TP
+        y_test = test.TP
+        
+
+        X_train = train.loc[:,feature_set]
+        X_test = test.loc[:,feature_set]
+
+        X_test.fillna(X_test.mean(), inplace=True)
+        X_train.fillna(X_train.mean(), inplace=True)
+
+        sm = RandomOverSampler(random_state=42)
+        X_train, y_train = sm.fit_resample(X_train, y_train)
+
+        np.save(dir_results+'/X_trainE_'+'cv'+str(nFold) + name + samp, X_train)
+        np.save(dir_results+'/y_trainE_'+'cv' +str(nFold)+ name + samp, y_train)
+        np.save(dir_results+'/X_testE_'+'cv'+str(nFold)+ name + samp, X_test)
+        np.save(dir_results+'/y_testE_' +'cv'+str(nFold)+ name + samp, y_test)
+
+        print( "created fold ",nFold, " ...")
+        
+        nFold = nFold + 1
+
+    seen = X_train_orig
+    y_seen = seen.TP
+    X_seen = seen.loc[:,feature_set]
+    X_seen.fillna(X_seen.mean(), inplace=True)  
+
+    # balance train set with upsampling
+    sm = RandomOverSampler(random_state=42)
+    X_seen, y_seen = sm.fit_resample(X_seen, y_seen)
+
+    np.save(dir_results+'/X_Eseen'+ name + samp, X_seen)
+    np.save(dir_results+'/y_Eseen'+ name + samp, y_seen)
+    print( "created train set ...")
+
+
+    unseen = X_test_heldout
+    y_unseen = unseen.TP
+    X_unseen = unseen.loc[:,feature_set]
+    X_unseen.fillna(X_unseen.mean(), inplace=True) 
+
+    np.save(dir_results+'/X_Eunseen'+ name + samp, X_unseen)
+    np.save(dir_results+'/y_Eunseen'+ name + samp, y_unseen) 
+    print( "created holdout set ...")
+
 def creat_numpy_files(dir_results, df_ho, df_tr):
     
     """ 
@@ -619,6 +718,107 @@ def creat_numpy_files(dir_results, df_ho, df_tr):
     np.save(dir_results+'/y_Eunseen', y_unseen) 
     print( "created holdout set ...")
 
+
+# +
+def model_selection_para(path_to_data, path_to_results, n_depths, n_ests, name, samp):
+    
+    """ 
+    This function runs cross validation on train set and finds the random forest model parameters which yeilds to best fmeasure.
+
+    Input and Parameters:
+    -------
+    path_to_data: path to held out featute matrices 
+    path_to_results: path to save model performance ast txt file
+    n_depth: a list of max_depths for random forest parameter
+    n_est: a list of n_estimators for random forest parameter
+
+    Returns:
+    -------
+    n_depth: n_depth which yeild to maximum fmeasure
+    n_est: n_est which yeild to maximum fmeasure
+
+    Examples:
+    -------
+    n_depth, ne_est = model_selection(path_to_data, path_to_results, n_depths, n_ests)
+    """
+    
+    fmeasure_matrix = np.zeros((len(n_depths),len(n_ests)))
+    
+    if not os.path.isdir(path_to_results):
+        os.mkdir(path_to_results)
+    
+    # load train and validation set for each fold
+    X_train = {}
+    y_train = {}
+    X_test = {}
+    y_test = {}
+    for nFold in range(1,6):
+        
+        exec("X_train["+ str(nFold) +"] = np.load( path_to_data + '/X_trainE_cv"+ str(nFold) + name + samp +".npy')")
+        exec("y_train["+ str(nFold) +"] = np.load( path_to_data + '/y_trainE_cv"+ str(nFold) + name + samp +".npy')")
+        exec("X_test["+ str(nFold) +"] = np.load( path_to_data + '/X_testE_cv"+ str(nFold)+ name + samp +".npy')")
+        exec("y_test["+ str(nFold) +"] = np.load( path_to_data + '/y_testE_cv"+ str(nFold)+ name + samp +".npy')")
+    
+    # run a grid search for parameter tuning 
+    print("start grid search ... ")
+    for n_ii, ii in enumerate(n_depths):
+        for n_jj, jj in enumerate(n_ests):
+        
+            auc_measure = []     
+            precision_total = np.zeros((5,2))
+            recall_total = np.zeros((5,2))
+            f_measure_total = np.zeros((5,2))
+            
+            for cv in range(1,6):
+                
+                 Xtr = X_train[cv]
+                 ytr = y_train[cv]
+                 Xts = X_test[cv]
+                 yts = y_test[cv]
+                
+                 # train the model 
+                 
+                 dtree_model = RandomForestClassifier(max_depth=ii,n_estimators=jj).fit(Xtr, ytr)
+                    
+                 # predict for test test
+                 dtree_predictions = dtree_model.predict(Xts)
+                 dtree_proba = dtree_model.predict_proba(Xts)
+                        
+                 # calculate performance metrics
+                 cm_dt4 = confusion_matrix(yts, dtree_predictions)
+                 
+                 auc_aux = roc_auc_score(yts, dtree_proba[:,1])
+                 auc_measure.append(auc_aux)
+                 
+                 precision_aux, recall_aux, f_measure_aux, _ = precision_recall_fscore_support(yts, dtree_predictions, average=None)
+                 precision_total[cv-1,:] = precision_aux
+                 recall_total[cv-1,:] = recall_aux
+                 f_measure_total[cv-1,:] = f_measure_aux
+              
+            # take average of performance metrics across folds
+            mean_auc = np.mean(auc_measure)
+            mean_precision = np.mean(precision_total,axis=0)
+            mean_recall = np.mean(recall_total,axis=0)
+            mean_f_measure = np.mean(f_measure_total,axis=0)
+            
+            # write the result in text file
+            f = open( path_to_results + '/RF_Best_metrics'+ name + samp + '.txt','w')
+            f.write('mean_AUC = '+ str(mean_auc)+'\n')
+            f.write('mean_precision = '+ str(mean_precision)+'\n')
+            f.write('mean_recall = '+ str(mean_recall)+'\n')
+            f.write('mean_f_measure = '+ str(mean_f_measure)+'\n')            
+            f.close()
+            
+            # keep track of average fmeasure for each parameter set
+            
+            fmeasure_matrix[n_ii,n_jj] = mean_f_measure[0]
+            
+    # find the model parameters which gives the best average fmeasure on 5 fold validation sets    
+    i,j = np.unravel_index(fmeasure_matrix.argmax(), fmeasure_matrix.shape)
+    n_depth = n_depths[i]
+    ne_est = n_ests[j]
+    print("best parameters for random forest are: n_depth: "+str(n_depth)+", and n_estimators: "+str(ne_est))
+    return n_depth, ne_est
 
 def model_selection(path_to_data, path_to_results, n_depths, n_ests):
     
@@ -720,6 +920,116 @@ def model_selection(path_to_data, path_to_results, n_depths, n_ests):
     print("best parameters for random forest are: n_depth: "+str(n_depth)+", and n_estimators: "+str(ne_est))
     return n_depth, ne_est
 
+
+# +
+def heldout_performance_para(path_to_data, path_to_results, n_depth, n_est, name, samp):
+    
+    """ 
+    This function trains a random forest model on seen data and performs prediction on heldout.
+
+    Input and Parameters:
+    -------
+    path_to_data: path to held out featute matrices 
+    path_to_results: path to save model performance ast txt file
+    n_depth: max_depth for random forest parameter
+    n_est: n_estimators for random forest parameter
+
+    Returns:
+    -------
+    auc_measure: auc on heldout
+    precision_total: precision of positive class on heldout
+    recall_total: recall of positive class on heldout
+
+    Examples:
+    -------
+    auc , precision, recall = heldout_performance(path_to_data, path_to_results, n_depth, n_est)
+    """
+    
+    if not os.path.isdir(path_to_results):
+        os.mkdir(path_to_results)
+    f = open(path_to_results + '/RF_Best_metrics' + name + samp + '.txt','w')
+    path_to_data = './feature_metrices'
+    
+    # read data
+    X_train = np.load(path_to_data+'/X_Eseen' + name + samp + '.npy')
+    y_train = np.load(path_to_data+'/y_Eseen' + name + samp + '.npy')
+    X_test = np.load(path_to_data+'/X_Eunseen' + name + samp + '.npy')
+    y_test = np.load(path_to_data+'/y_Eunseen' + name + samp + '.npy')
+    
+    
+    col_mean = np.nanmean(X_train, axis=0)
+    inds = np.where(np.isnan(X_train))
+    X_train[inds] = np.take(col_mean, inds[1])
+    
+    col_mean = np.nanmean(X_test, axis=0)
+    inds = np.where(np.isnan(X_test))
+    X_test[inds] = np.take(col_mean, inds[1])
+     
+       
+    # train the model
+    dtree_model = RandomForestClassifier(n_estimators=n_est,max_depth=n_depth).fit(X_train, y_train)
+    
+    
+    # feature importance and prediction on test set 
+    feature_importance = dtree_model.feature_importances_
+    dtree_predictions = dtree_model.predict(X_test)
+    dtree_proba = dtree_model.predict_proba(X_test)
+      
+    # calculate performance metrics
+    cm_dt4 = confusion_matrix(y_test, dtree_predictions)
+    auc_measure = roc_auc_score(y_test, dtree_proba[:,1])
+    precision = precision_score(y_test, dtree_predictions, average = "micro")
+    recall = recall_score(y_test, dtree_predictions, average = "micro")
+    precision_1 = precision_score(y_test, dtree_predictions, average = "macro")
+    recall_1 = recall_score(y_test, dtree_predictions, average = "macro")
+    #print(precision_score(y_test, dtree_predictions, average = "binary"))    
+    #print(recall_score(y_test, dtree_predictions, average = "binary")) 
+    #print(precision_score(y_test, dtree_predictions, average = "weighted"))    
+    #print(recall_score(y_test, dtree_predictions, average = "weighted")) 
+    #print(precision_score(y_test, dtree_predictions, average = "samples"))    
+    #print(recall_score(y_test, dtree_predictions, average = "samples")) 
+
+
+
+    precision_total, recall_total, f_measure_total, _ = precision_recall_fscore_support(y_test, dtree_predictions, average=None)
+       
+    
+    
+    f.write('heldout_AUC = '+ str(auc_measure)+'\n')
+    f.write('heldout_precision = '+ str(precision_total)+'\n')
+    f.write('heldout_recall = '+ str(recall_total)+'\n')
+    f.write('heldout_f_measure = '+ str(f_measure_total)+'\n')
+    f.write('feature_importance = '+ str(list(feature_importance))+'\n')
+    f.close()
+
+    precision_return = []
+    recall_return = []
+    
+    print("AUC: " +str(np.round(auc_measure,2)))
+    print("precision: " +str(precision))
+    print("recall: " +str(recall))
+    
+    precision_return.append(precision)
+    recall_return.append(recall)
+    precision_return.append(precision_1)
+    recall_return.append(recall_1)
+    precision_return.append(np.mean(precision_total))
+    recall_return.append(np.mean(recall_total))
+
+    print("precision again: " + str(precision_1))
+    print("recall again: " + str(recall_1))
+    print("precision again: " + str(np.mean(precision_total)))
+    print("recall again: " + str(np.mean(recall_total)))
+
+
+    #precision_return.append(precision_score(y_test, dtree_predictions, average = "binary"))    
+    #recall_return.append(recall_score(y_test, dtree_predictions, average = "binary")) 
+    #precision_return.append(precision_score(y_test, dtree_predictions, average = "weighted"))    
+    #recall_return.append(recall_score(y_test, dtree_predictions, average = "weighted")) 
+    #precision_return.append(precision_score(y_test, dtree_predictions, average = "samples"))    
+    #recall_return.append(recall_score(y_test, dtree_predictions, average = "samples")) 
+    
+    return auc_measure, precision_return, recall_return
 
 def heldout_performance(path_to_data, path_to_results, n_depth, n_est):
     
@@ -830,6 +1140,8 @@ def heldout_performance(path_to_data, path_to_results, n_depth, n_est):
     
     return auc_measure, precision_return, recall_return
 
+
+# -
 
 def demo(): 
     
@@ -1111,7 +1423,7 @@ def topol_stacking_for_sampling_old(DATA, net, count, samp):
     return auc, precision, recall
 
 
-def topol_stacking_for_sampling(path, net, samp): 
+def topol_stacking_for_sampling(path, path1, net, samp): 
     
     """ 
     This function extracts topological features and performs link prediction using stacking model on the input network (edges_orig).
@@ -1135,22 +1447,22 @@ def topol_stacking_for_sampling(path, net, samp):
     train_name = "edge_set" +"_train"
     
     
-    orig_edge = np.loadtxt(path + name +'.txt')
-    A_train = np.load(path + name + "_2" +'_Atr.npy')
-    A_hold = np.load(path + name + "_2" +'_Aho.npy')
+    orig_edge = np.loadtxt(path1 + name +'.txt')
+    A_train = np.load(path + name + "_1" + samp +'_Atr.npy')
+    A_hold = np.load(path + name + "_1" +'_Aho.npy')
       
     
     
     num_nodes_orig = int(np.max(orig_edge)) + 1
     
-    edge_t_tr = np.loadtxt(path + name + "_2" + samp +"_"+ "t" + "_" + "train" + "_10000" + ".npy").astype('int')
-    edge_f_tr = np.loadtxt(path + name + "_2" + samp +"_"+ "f" + "_" + "train" + "_10000" + ".npy").astype('int')
+    edge_t_tr = np.loadtxt(path + name + "_1" + samp +"_"+ "t" + "_" + "valid" + ".npy").astype('int')
+    edge_f_tr = np.loadtxt(path + name + "_1" +"_"+ "f" + "_" + "valid" + "_10000" + ".npy").astype('int')
     
     df_f_tr = gen_topol_feats(num_nodes_orig, A_train, edge_f_tr)
     df_t_tr = gen_topol_feats(num_nodes_orig, A_train, edge_t_tr)
     
-    edge_t_ho = np.loadtxt(path + name + "_2" + samp +"_"+ "t" + "_" + "test" + "_10000" + ".npy").astype('int')
-    edge_f_ho = np.loadtxt(path + name + "_2" + samp +"_"+ "f" + "_" + "test" + "_10000" + ".npy").astype('int')
+    edge_t_ho = np.loadtxt(path + name + "_1" +"_"+ "t" + "_" + "test" + "_10000" + ".npy").astype('int')
+    edge_f_ho = np.loadtxt(path + name + "_1" +"_"+ "f" + "_" + "test" + "_10000" + ".npy").astype('int')
     
     df_f_ho = gen_topol_feats(num_nodes_orig, A_hold, edge_f_ho)
     df_t_ho = gen_topol_feats(num_nodes_orig, A_hold, edge_t_ho)
@@ -1174,7 +1486,7 @@ def topol_stacking_for_sampling(path, net, samp):
     
     #### creat and save feature matrices #### 
     dir_output = './feature_metrices'  # output path
-    creat_numpy_files(dir_output, df_ho, df_tr)
+    creat_numpy_files_para(dir_output, df_ho, df_tr, name, samp)
     
     
     #### perform model selection #### 
@@ -1182,10 +1494,10 @@ def topol_stacking_for_sampling(path, net, samp):
     path_to_results = './results'
     n_depths = [3, 6] # here is a sample search space
     n_ests = [25, 50, 100] # here is a sample search space
-    n_depth, n_est = model_selection(path_to_data, path_to_results, n_depths, n_ests)
+    n_depth, n_est = model_selection_para(path_to_data, path_to_results, n_depths, n_ests, name, samp)
     
     
     #### perform model selection #### 
-    auc , precision, recall = heldout_performance(path_to_data, path_to_results, n_depth, n_est)
+    auc , precision, recall = heldout_performance_para(path_to_data, path_to_results, n_depth, n_est, name, samp)
     
     return auc, precision, recall

@@ -2,25 +2,20 @@
 % % ------------------------------
 
 % % ------------------------------
-function auc_score = modularity_for_sampling(path, net, samp)
+function auc_score = modularity_for_sampling(path1, path2, net, samp)
 
 rng(net)
-addpath(genpath('/home/xhe/MODULARITY_5_RUN/modularity_1'));
+addpath(genpath('/home/xhe/after_samp_process/link_predictions/Modularity/m1/Modularity_related_codes/'));
+addpath(genpath('/home/xhe/after_samp_process/link_predictions/Modularity/m1/'));
 %path = 'C:\Users\hexie\OneDrive\Desktop\sampling\';
 
 
 name = sprintf('net%d_',net);
 name_str = sprintf('net%d_.txt', net);
 
-test_name = sprintf('edge_set_test.txt');
-
-train_name = sprintf('edge_set_train.txt');
-
-
-
 %str = sprintf('edge_list_LC_%d.txt',gml_id);
-edges_orig = dlmread([path,name_str]);
-edges_orig = edges_orig + 1;
+edges_orig = dlmread([path1,name_str]);
+edges_orig = edges_orig+1;
 %edges_orig = [1 2;1 3;2 3;3 4;4 5;4 6;5 6];
 
 
@@ -29,7 +24,7 @@ edges_orig = edges_orig + 1;
 % FP=cell(length(frac_id_set),length(count_set));
 % TP=cell(length(frac_id_set),length(count_set));
 %%
-N_orig = length(unique(edges_orig));
+N_orig = max(edges_orig,[],"all")+1;
 A_orig = sparse(zeros(N_orig,N_orig));
 M_orig = size(edges_orig,1);
 for mm = 1:M_orig
@@ -48,16 +43,15 @@ if exist(labels_foldername_Q,'dir') ~= 7
     mkdir(labels_foldername_Q)
 end
 
+train_name = sprintf('1%s_t_train.npy', samp)
 
 
-
-
-str_EL_sampled = sprintf('%s%s',name, train_name);
-fid = fopen([path,str_EL_sampled]);
+str_EL_sampled = sprintf('%s_%s',name, train_name);
+fid = fopen([path2,str_EL_sampled]);
 tline_aux = fgets(fid);
 
-edges_train = dlmread([path,str_EL_sampled]);
-N_train = length(unique(edges_train));
+edges_train = dlmread([path2,str_EL_sampled]);
+N_train = N_orig;
 
 
 edges = [];
@@ -166,11 +160,11 @@ end
 %         dQ = zeros(nonedges_length,1);
 Nsamples = 10000;
 
-t_sam_str = sprintf('%s_2%s_t_train_10000.npy',name, samp);
-f_sam_str = sprintf('%s_2%s_f_train_10000.npy',name, samp);
+t_sam_str = sprintf('%s_1_t_test_10000.npy',name);
+f_sam_str = sprintf('%s_1_f_test_10000.npy',name);
 
-f_samples = dlmread([path, f_sam_str]);
-t_samples = dlmread([path, t_sam_str]);
+f_samples = dlmread([path2, f_sam_str]);
+t_samples = dlmread([path2, t_sam_str]);
 f_samples = f_samples + 1;
 t_samples = t_samples + 1;
 results = [];

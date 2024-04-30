@@ -1,9 +1,10 @@
-addpath(genpath('/home2/xhe/modularity/'));
+addpath(genpath('/home/xhe/after_samp_process/link_predictions/Modularity/m1/Modularity_related_codes/'));
 %path = 'C:\Users\hexie\OneDrive\Desktop\sampling\data\';
 %savepath = 'C:\Users\hexie\OneDrive\Desktop\sampling\AUC_results\';
 
-path = '/home/xhe/updated_edges_revised/';
-savepath = '/home/xhe/MODULARITY_5_RUN/modularity_1/';
+path1 = '/home/xhe/updated_edges_revised/';
+path2 = '/home/xhe/sampled_edges_2024_old/';
+savepath = '/home/xhe/after_samp_process/link_predictions/Modularity/m1/';
 
 sampling_methods = {"RandomNodeSampler"; "DegreeBasedSampler"; "PageRankBasedSampler" ;"RandomEdgeSampler";
     "RandomNodeEdgeSampler" ;"HybridNodeEdgeSampler";"RandomEdgeSamplerWithInduction" ;"DiffusionSampler";"ForestFireSampler";
@@ -18,7 +19,7 @@ for net  = 1:572
     for k = 1:length(sampling_methods)
        samp = sampling_methods{k}
        try
-           auc = modularity_for_sampling(path, netme, samp);
+           auc = modularity_for_sampling(path1, path2, netme, samp);
        catch
            auc = 0;
        end
